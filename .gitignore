@@ -1,0 +1,19 @@
+# Environment
+.env
+
+# Data files
+*.csv
+*.json
+hotels_raw.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Logs
+logs/
+
+# VS Code
+.vscode/
