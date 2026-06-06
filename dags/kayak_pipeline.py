@@ -7,6 +7,8 @@ import pandas as pd
 import os
 import requests
 import time
+from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
+
 
 # We list all the cities selected
 cities = [
@@ -196,7 +198,19 @@ with DAG(
         python_callable=etl_to_postgres
     )
 
+    # Task 7 - Spark 
+    # Call spark-submit
+    spark_task = SparkSubmitOperator(
+        task_id="spark_etl",
+        application="/opt/airflow/dags/spark_etl.py",
+        conn_id="spark_default",
+        jars="/opt/bitnami/spark/jars/extra/postgresql-42.7.3.jar",  # The java driver
+        dag=dag
+    )
+
+
     # execution order
     get_coordinates_task >> get_weather_task
     get_weather_task >> upload_s3_task
     upload_s3_task >> etl_task
+    etl_task >> spark_task

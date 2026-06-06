@@ -17,3 +17,6 @@ logs/
 
 # VS Code
 .vscode/
+
+# Java drivers
+*.jar
