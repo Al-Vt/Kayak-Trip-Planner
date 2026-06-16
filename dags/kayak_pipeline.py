@@ -29,9 +29,10 @@ default_args = {
     "retry_delay": timedelta(minutes=5)
 }
 
-# Location of cities
+# Retrieving GPS data via the OpenStreetMap API
 def get_coordinates_all_cities(**context):
     results = []
+    # For each city, a request is sent to Nominatim
     for city in cities:
         headers = {"User-Agent": "kayak-trip-planner/1.0"}
         params = {"q": city + ", France", "format": "json", "limit": 1}
@@ -41,23 +42,26 @@ def get_coordinates_all_cities(**context):
             params=params
         )
         data = response.json()
+        # If the city is found, the data is stored in dictionary list
         if data:
             results.append({
                 "city": city,
                 "latitude": float(data[0]["lat"]),
                 "longitude": float(data[0]["lon"])
             })
+        # Otherwise, we store None to avoid crashing the loop    
         else:
             results.append({"city": city, "latitude": None, "longitude": None})
         time.sleep(1)
     
+    # We convert the dictionary list to CSV
     df_cities = pd.DataFrame(results)
     df_cities.to_csv("/opt/airflow/data/cities.csv", index=False)
     print(f"{len(df_cities)} cities saved")
 
 
 
-# Weather for all coties
+# function to retrieve the weather for each city using OpenWeatherMap
 def get_weather_all_cities(**context):
     
     # We take cities
@@ -66,8 +70,8 @@ def get_weather_all_cities(**context):
     
     all_weather = []
     
+    # We retrieve the city names from the CSV created with the OpenStreetMap API
     for _, row in df_cities.iterrows():
-        # API call
         response = requests.get(
             "https://api.openweathermap.org/data/2.5/forecast",
             params={
@@ -91,7 +95,9 @@ def get_weather_all_cities(**context):
                 "description": entry["weather"][0]["description"]
             })
         
-        # Group by day
+        # Converts the dictionary list into a dataframe
+        # The API returns multiple entries per day
+        # Therefore, we aggregate them to obtain a single line per city per day
         df = pd.DataFrame(rows)
         df_daily = df.groupby(["city", "date"]).agg(
             temp_min=("temp", "min"),
@@ -109,8 +115,7 @@ def get_weather_all_cities(**context):
     print(f"{len(df_weather)} saved weather rows")
 
 
-# Hotels function 
-# We take data of our csv from our previously created CS
+# function to save weather data in the S3
 def upload_to_s3(**context):
     s3 = boto3.client(
         "s3",
@@ -128,7 +133,7 @@ def upload_to_s3(**context):
     )
     print("weather_raw.csv uploaded on S3")
 
-# ETL function
+# ETL Function to read CSV files from the S3 and load the data into PostgreSQL
 def etl_to_postgres(**context):
     # Connexion S3
     s3 = boto3.client(
@@ -140,11 +145,12 @@ def etl_to_postgres(**context):
     
     BUCKET_NAME = "kayak-av-jedha"
     
-    # Loading csv from S3
+    # Download the S3 file to the local disk of the Airflow container
     s3.download_file(BUCKET_NAME, "weather_raw.csv", "/opt/airflow/data/weather_raw.csv")
     s3.download_file(BUCKET_NAME, "hotels_raw.csv", "/opt/airflow/data/hotels_raw.csv")
-    print("✅ CSV téléchargés depuis S3")
+    print("CSV downloaded from the S3")
     
+    # Then we load the weather and hotel CSV files into PostgreSQL
     # read csv
     df_weather = pd.read_csv("/opt/airflow/data/weather_raw.csv")
     df_hotels = pd.read_csv("/opt/airflow/data/hotels_raw.csv")
@@ -174,37 +180,36 @@ with DAG(
 
 
 
-    # Task 1 - Geolocation
+    # Geolocation
     get_coordinates_task = PythonOperator(
         task_id="get_coordinates",
         python_callable=get_coordinates_all_cities
     )
 
-    # Task 2 - Weather
+    # Weather
     get_weather_task = PythonOperator(
         task_id="get_weather",
         python_callable=get_weather_all_cities
     )
 
-    # Task 5 - Upload S3
+    # Upload S3
     upload_s3_task = PythonOperator(
         task_id="upload_to_s3",
         python_callable=upload_to_s3
     )
 
-    # Task 6 - ETL
+    # ETL
     etl_task = PythonOperator(
         task_id="etl_to_postgres",
         python_callable=etl_to_postgres
     )
 
-    # Task 7 - Spark 
-    # Call spark-submit
+    # Spark 
     spark_task = SparkSubmitOperator(
         task_id="spark_etl",
         application="/opt/airflow/dags/spark_etl.py",
         conn_id="spark_default",
-        jars="/opt/bitnami/spark/jars/extra/postgresql-42.7.3.jar",  # The java driver
+        jars="/opt/bitnami/spark/jars/extra/postgresql-42.7.3.jar",  # Java driver
         dag=dag
     )
 

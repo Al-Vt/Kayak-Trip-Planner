@@ -2,17 +2,23 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 import os
 
+# ETL with spark
+
 # Starting Spark
 spark = SparkSession.builder.appName("KayakScoring").getOrCreate()
 
+# reading weather and hotel CSV files
+# These CSV files are generated with kayak_pipeline.py
 weather = spark.read.csv("/opt/airflow/data/weather_raw.csv", header=True, inferSchema=True)
 hotels = spark.read.csv("/opt/airflow/data/hotels_raw.csv", header=True, inferSchema=True)
 
-# Mean by cities
+# Calculates the average temperature and probability of rain for the last 5 days, by city
 weather_avg = weather.groupBy("city").agg(
     F.avg("temp_max").alias("avg_temp"),
     F.avg("pop").alias("avg_rain")
 )
+
+# calculation of the average city scores
 hotels_avg = hotels.groupBy("city").agg(
     F.avg("score").alias("avg_score")
 )
