@@ -20,6 +20,8 @@ Finally, an interactive streamlit was created to allow users to sort the results
 
 ## Architecture
 
+<img width="2120" height="820" alt="Kayak" src="https://github.com/user-attachments/assets/b0d20683-5084-4dcb-a8b0-b399c03a38f1" />
+
 ```
 Nominatim          → GPS coordinates for 35 cities
 OpenWeatherMap     → 6-day weather forecast          →  S3  →  PostgreSQL  →  Streamlit
