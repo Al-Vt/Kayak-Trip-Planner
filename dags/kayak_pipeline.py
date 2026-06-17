@@ -154,7 +154,8 @@ def etl_to_postgres(**context):
     # read csv
     df_weather = pd.read_csv("/opt/airflow/data/weather_raw.csv")
     df_hotels = pd.read_csv("/opt/airflow/data/hotels_raw.csv")
-    
+    df_cities = pd.read_csv("/opt/airflow/data/cities.csv")
+
     # Connexion to PostgreSQL
     engine = create_engine(os.getenv("KAYAK_DB_CONN"))
     
@@ -165,6 +166,8 @@ def etl_to_postgres(**context):
     df_hotels.to_sql("hotels", engine, if_exists="replace", index=False)
     print(f"{len(df_hotels)} hotel rows uploaded")
 
+    df_cities.to_sql("cities", engine, if_exists="replace", index=False)
+    print(f"{len(df_cities)} city rows uploaded")
 
 
 

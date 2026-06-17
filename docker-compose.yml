@@ -168,11 +168,16 @@ services:
       context: .
       dockerfile: Dockerfile.streamlit
     container_name: kayak_streamlit
+    environment:
+      KAYAK_DB_CONN: postgresql+psycopg2://${KAYAK_POSTGRES_USER}:${KAYAK_POSTGRES_PASSWORD}@kayak-postgres/${KAYAK_POSTGRES_DB}
+    depends_on:
+      - kayak-postgres
     ports:
       - "8501:8501"
     volumes:
       - .:/app
     restart: always
+
 
 # Spark 
   spark-master:

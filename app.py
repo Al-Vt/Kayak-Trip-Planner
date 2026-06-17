@@ -1,15 +1,21 @@
+import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from sqlalchemy import create_engine
 
-# Titre
-st.title("🌤️ Kayak Trip Planner")
-st.subheader("Trouvez votre prochaine destination en France")
+# Title
+st.title("Kayak Trip Planner")
+st.subheader("Find your next destination in France")
+
+# Connection to the PostgreSQL data warehouse
+engine = create_engine(os.getenv("KAYAK_DB_CONN"))
 
 # Loading
-df_weather = pd.read_csv("weather_raw.csv")
-df_hotels = pd.read_csv("hotels_raw.csv")
-df_cities = pd.read_csv("cities.csv")
+df_weather = pd.read_sql("SELECT * FROM weather", engine)
+df_hotels = pd.read_sql("SELECT * FROM hotels", engine)
+df_cities = pd.read_sql("SELECT * FROM cities", engine)
+
 
 # Scoring
 df_score = df_weather.groupby("city").agg(

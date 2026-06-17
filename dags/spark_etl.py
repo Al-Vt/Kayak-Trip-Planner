@@ -7,10 +7,18 @@ import os
 # Starting Spark
 spark = SparkSession.builder.appName("KayakScoring").getOrCreate()
 
-# reading weather and hotel CSV files
-# These CSV files are generated with kayak_pipeline.py
-weather = spark.read.csv("/opt/airflow/data/weather_raw.csv", header=True, inferSchema=True)
-hotels = spark.read.csv("/opt/airflow/data/hotels_raw.csv", header=True, inferSchema=True)
+# Connexion to PostgreSQL
+jdbc_url = "jdbc:postgresql://kayak-postgres:5432/" + os.getenv("KAYAK_POSTGRES_DB")
+jdbc_props = {
+    "user": os.getenv("KAYAK_POSTGRES_USER"),
+    "password": os.getenv("KAYAK_POSTGRES_PASSWORD"),
+    "driver": "org.postgresql.Driver"
+}
+
+# reading weather and hotel tables from PostgreSQL
+weather = spark.read.jdbc(url=jdbc_url, table="weather", properties=jdbc_props)
+hotels = spark.read.jdbc(url=jdbc_url, table="hotels", properties=jdbc_props)
+
 
 # Calculates the average temperature and probability of rain for the last 5 days, by city
 weather_avg = weather.groupBy("city").agg(
@@ -32,12 +40,14 @@ result = weather_avg.join(hotels_avg, on="city") \
     .orderBy(F.col("score").desc())
 
 # Saving in PostgreSQL
+# Writing to PostgreSQL using the JDBC protocol
 result.write.format("jdbc") \
-    .option("url", "jdbc:postgresql://kayak-postgres:5432/kayak_dw") \
+    .option("url", jdbc_url) \
     .option("dbtable", "city_recommendations") \
-    .option("user", os.getenv("KAYAK_POSTGRES_USER")) \
-    .option("password", os.getenv("KAYAK_POSTGRES_PASSWORD")) \
-    .option("driver", "org.postgresql.Driver") \
+    .option("user", jdbc_props["user"]) \
+    .option("password", jdbc_props["password"]) \
+    .option("driver", jdbc_props["driver"]) \
     .mode("overwrite").save()
+
 
 spark.stop()

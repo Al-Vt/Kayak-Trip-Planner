@@ -2,11 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN pip install streamlit pandas plotly
+RUN pip install streamlit pandas plotly sqlalchemy psycopg2-binary
 
 COPY app.py .
-COPY weather_raw.csv .
-COPY hotels_raw.csv .
-COPY cities.csv .
 
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
